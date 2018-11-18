@@ -6,22 +6,23 @@ library(rpart.plot)
 
 
 
-features <- c('Price', 'Category', 'IsHOF', 'SellerAuctionCount', 'SellerAuctionSaleCount', 
-              'StartingBid', 'EndDay')
+# features <- c('Price', 'Category', 'IsHOF', 'SellerAuctionCount', 'SellerAuctionSaleCount', 
+#               'StartingBid', 'EndDay')
 
 #alternative - need to check
-# c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
-#   "AuctionHitCountAvgRatio", "Authenticated", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
+features <- c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
+              "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
+
 
 tree.df <- fread('Data/TrainingSet.csv', select = features)
 # train.data$Price=log(train.data$Price)
 
 tree.df$IsHOF <- as.factor(tree.df$IsHOF)
-tree.df$Category <- as.factor(tree.df$Category)
-tree.df$EndDay <- as.factor(tree.df$EndDay)
+# tree.df$Category <- as.factor(tree.df$Category)
+# tree.df$EndDay <- as.factor(tree.df$EndDay)
 
 # grow tree 
-fit <- rpart(Price ~ ., method="anova", data=tree.df)
+tree <- rpart(Price ~ ., method="anova", data=tree.df)
 
 printcp(fit) # display the results 
 plotcp(fit) # visualize cross-validation results 
@@ -56,4 +57,34 @@ text(pfit, use.n=TRUE, all=TRUE, cex=.8)
 # fit <- ctree(Price ~ ., data=tree.df)
 # plot(fit, main="Conditional Inference Tree for Ebay Auction price prediction")
 
+#############"
+
+test.raw.data  <- read.csv(file='Data/TestSubset.csv', sep=',', h=T)
+test.data <- test.raw.data[c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent",
+                             "StartingBidPercent", "StartingBid", "AuctionHitCountAvgRatio", "Authenticated", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")]
+# test.data$Price=log(test.data$Price)
+
+test.data$IsHOF <- as.factor(test.data$IsHOF)
+
+# make predictions
+predCart<-predict(tree, test.data, type = "vector")
+
+# add fields to test.data
+# test.data[["SalePrice"]] <- exp(test.data$Price)
+test.data[["SalePrice"]] <- test.data$Price
+# test.data[["Prediction"]] <- exp(predCart)
+test.data[["Prediction"]] <- predCart
+test.data[["Interval"]] <- (round((test.data$Prediction)/5+1)*5)
+
+# calculate the RMSE, standard deviation, mean difference
+sqrt(mean(test.data$SalePrice-test.data$Prediction)^2)
+sd(test.data$Prediction)
+sum(test.data$SalePrice-test.data$Prediction)/sum(test.data$SalePrice)
+
+
+# create title for results plot
+title <- paste('Auction Prediction Results - CART', sep='')
+# create results plot
+prediction.plot <- ggplot(test.data, aes(x=SalePrice, y=Prediction)) + geom_point() + geom_line() + ggtitle(title)+ stat_smooth()
+print(prediction.plot)
 
