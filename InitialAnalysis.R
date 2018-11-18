@@ -1,5 +1,4 @@
 library(ggplot2)
-library(ggplot2)
 library(tidyr)
 
 EbayAuctions <- fread('Data/TrainingSet.csv')
@@ -55,3 +54,22 @@ fit <- randomForest(factor(QuantitySold) ~ ., data = ebay.subset[1:10000,])
 library(caret)
 varImpPlot(fit)
 
+#Scatterplots 
+
+# pairs(~Price+StartingBid+SellerAuctionCount+HitCount,data=EbayAuctions, 
+#       main="Simple Scatterplot Matrix")
+
+
+# useless PCA plots 
+
+subset <- EbayAuctions[,c('StartingBid', 'SellerAuctionCount', 'HitCount')]
+
+ea.pca <- prcomp(susbet, center = TRUE,scale. = TRUE)
+summary(ea.pca)
+plot(ea.pca$x[,1:2], EbayAuctions$Price)
+ 
+# library(devtools)
+# install_github("vqv/ggbiplot")
+
+library(ggbiplot)
+ggbiplot(ea.pca)
