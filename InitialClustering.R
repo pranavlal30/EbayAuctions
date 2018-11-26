@@ -14,7 +14,7 @@ features <- c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent
               "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
 
 df <- fread('Data/TrainingSet.csv', select = features)
-dfsub <- df[1:20000]
+dfsub <- df[sample(nrow(df), 1000)]
 
 plot(dfsub$AvgPrice, dfsub$SellerAuctionSaleCount)
 
@@ -35,7 +35,7 @@ plot(1:k.max, wss,
 kmeans3 <- kmeans(dfsub[,c('AvgPrice','SellerAuctionSaleCount')], 3)
 print(kmeans3)
 
-kw_with_cluster <- as.data.frame(cbind(dfsub, kmeans3$cluster))
+dfsub_c <- as.data.table(cbind(dfsub, kmeans3$cluster))
 
 library(miceadds)
 library(multiwayvcov)
@@ -47,8 +47,7 @@ vcov(mod1)
 summary(mod1)
 
 
-# c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
-  # "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
+
 #Forward selection
 fullmod <- miceadds::lm.cluster( data=kw_with_cluster, 
                                  formula=Price ~ IsHOF + StartingBid 
@@ -65,3 +64,25 @@ predict(fullmod)
 
 
 pairs(dfsub)
+
+full.fmla <- as.formula(Price ~ IsHOF + StartingBid 
++ StartingBidPercent + ItemAuctionSellPercent + AuctionHitCountAvgRatio 
++AuctionCount + AuctionMedianPrice)
+
+num.clust <- length(unique(dfsub_c$V2))
+
+for(i in 1:num.clust){
+  dfsub_c[V2 == i]
+  full <- lm(formula = full.fmla, data = dfsub_c[V2 == i])
+  empty <- lm(formula = Price~1, data = dfsub_c[V2 == i])
+  assign(paste('backward', i, sep = '.'),step(full))
+  assign(paste('forward', i, sep = '.'),step(empty, scope=list(lower=formula(empty),
+                                                               upper=formula(full)),
+                                             direction = 'forward'))
+}
+
+summary(backward.3)
+summary(forward.3)
+
+summary(step(lm(formula = full.fmla, data = dfsub_c), trace =0))
+
