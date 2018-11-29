@@ -1,7 +1,4 @@
-<<<<<<< HEAD
 library(data.table)
-=======
->>>>>>> e69be3dcd17774bb689cb3c45fb287c7c538f419
 library(ggplot2)
 library(tidyr)
 library(corrplot)
@@ -14,6 +11,14 @@ names(EbayAuctions)
 summary(EbayAuctions)
 
 nrow(EbayAuctions[IsHOF == 0,])
+
+#Interesting plot - Difference between starting bid and final price
+plot(ebay.subset$StartingBid, (ebay.subset$Price-ebay.subset$StartingBid))
+
+#Same with only the ones that has been sold
+ebay.sold <- ebay.subset[QuantitySold == 1]
+plot(ebay.sold$StartingBid, (ebay.sold$Price-ebay.sold$StartingBid))
+
 
 #Feature correlation
 
@@ -97,4 +102,26 @@ plot(ea.pca$x[,1:2], EbayAuctions$Price)
 
 library(ggbiplot)
 ggbiplot(ea.pca)
->>>>>>> e69be3dcd17774bb689cb3c45fb287c7c538f419
+
+
+corr <- cor(ebay.subset)
+library(spatstat)
+# corRaw[nrow(corRaw):1,]
+plot(im(corr), main="Correlation Matrix Map")
+dissimilarity <- 1 - corr
+distance <- as.dist(dissimilarity)
+plot(hclust(distance), 
+     main="Dissimilarity = 1 - Correlation", xlab="")
+
+
+library(cluster)
+plot(agnes(distance))
+
+library(Hmisc)
+plot( varclus(as.matrix(ebay.subset), similarity="spearman") )
+
+library(pvclust)
+cluster.bootstrap <- pvclust(ebay.subset, nboot=100, 
+                             method.dist="abscor", parallel = TRUE)
+plot(cluster.bootstrap)
+pvrect(cluster.bootstrap)
