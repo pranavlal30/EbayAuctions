@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 library(data.table)
+=======
+>>>>>>> e69be3dcd17774bb689cb3c45fb287c7c538f419
 library(ggplot2)
 library(tidyr)
 library(corrplot)
@@ -71,5 +74,27 @@ fit <- randomForest(factor(QuantitySold) ~ ., data = ebay.subset[1:10000,])
 library(caret)
 varImpPlot(fit)
 
+<<<<<<< HEAD
 #
 
+=======
+#Scatterplots 
+
+# pairs(~Price+StartingBid+SellerAuctionCount+HitCount,data=EbayAuctions, 
+#       main="Simple Scatterplot Matrix")
+
+
+# useless PCA plots 
+
+subset <- EbayAuctions[,c('StartingBid', 'SellerAuctionCount', 'HitCount')]
+
+ea.pca <- prcomp(susbet, center = TRUE,scale. = TRUE)
+summary(ea.pca)
+plot(ea.pca$x[,1:2], EbayAuctions$Price)
+ 
+# library(devtools)
+# install_github("vqv/ggbiplot")
+
+library(ggbiplot)
+ggbiplot(ea.pca)
+>>>>>>> e69be3dcd17774bb689cb3c45fb287c7c538f419
