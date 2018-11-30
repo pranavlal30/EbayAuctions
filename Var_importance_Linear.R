@@ -23,19 +23,26 @@ print(highlyCorrelated)
 # ensure results are repeatable
 set.seed(7)
 # prepare training scheme
-control <- trainControl(method="repeatedcv", number=3, repeats=3)
+# control <- trainControl(method="repeatedcv", number=3, repeats=3)
+control <- trainControl(method="cv", number=3)
 # # train the model
 # model <- train(Price~., data=EbayAuctions, method='bridge', 
 #                preProcess="scale", trControl=control, metric = 'RMSE')
-model <- train(Price~., data=EbayAuctions[1:2000], method='bridge', 
+
+# model <- train(Price~., data=EbayAuctions[1:10000], method='bridge', 
+#                trControl=control, metric = 'RMSE')
+model <- train(Price~., data=EbayAuctions, method='foba', 
                trControl=control, metric = 'RMSE')
+
 
 # estimate variable importance
 importance <- varImp(model, scale=FALSE)
 # summarize importance
 print(importance)
 # plot importance
-plot(importance)
+plot(importance, cex= 1.2, cex.main = 1.5, 
+     main = 'Var importance with random forest',cex.lab=1.5, cex.axis=2,
+     cex.names=2)
 
 
 # 
