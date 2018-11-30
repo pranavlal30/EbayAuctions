@@ -196,15 +196,6 @@ correlation_accuracy
 ### Results are worse than the original :-/
 
 
-library(RColorBrewer)
-library(sp)
-
-newData <- data.frame(X=seq(min(EbayAuctions$LogPrice), max(EbayAuctions$LogPrice), len=100))
-newData$Y_logit <- predict(linear.model, newdata = newData)
-
-plot(EbayAuctions$LogPrice, EbayAuctions$LogPrice)
-lines(Y_logit ~ X, newData, col = "red", lwd = 4)
-
 
 
 
