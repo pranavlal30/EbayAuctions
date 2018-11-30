@@ -6,22 +6,21 @@ library(rpart.plot)
 library(dplyr)
 
 
-### TODO : - ACP on those features to find 2 variables with the highest contribution to the variance
-###        - Use those 2 variables for clustering
-###        - plot ? Do the CART method & Clustering regression, compare results
-
-
-# features <- c('Price', 'Category', 'IsHOF', 'SellerAuctionCount', 'SellerAuctionSaleCount',
-               # 'StartingBid', 'EndDay')
-
-#alternative - need to check
 features <- c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
 "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
 
 df <- fread('Data/TrainingSet.csv', select = features)
-df2 <- fread('Data/TrainingSet.csv')
-dfsub <- df[sample(nrow(df), 10000)]
-dfsub2 <- df2[sample(nrow(df), 1000)]
+test <- fread('Data/TestSet.csv')
+
+
+df$AvgPrice <- log(df$AvgPrice)
+df$Price <- log(df$Price)
+df$AuctionMedianPrice <- log(df$AuctionMedianPrice)
+
+test$AvgPrice <- log(test$AvgPrice)
+test$AuctionMedianPrice <- log(test$AuctionMedianPrice)
+
+
 
 plot(dfsub$AvgPrice, dfsub$SellerAuctionSaleCount)
 
@@ -30,12 +29,11 @@ av <- av[order(avg),]
 
 barplot(av$avg, av$Category)
 barplot(log(av$avg), av$Category)
-#Check the "optimal" number of clusters with elbow curve
+
 set.seed(123)
-# Compute and plot wss for k = 2 to k = 6.
 k.max <- 6
-data <- dfsub[,c('AvgPrice','SellerAuctionSaleCount')]#scaled_data
-# data <- dfsub
+data <- df[,c('AvgPrice','AuctionHitCountAvgRatio')]
+
 wss <- sapply(1:k.max, 
               function(k){kmeans(data, k,iter.max = 15 )$tot.withinss})
 wss
@@ -44,58 +42,34 @@ plot(1:k.max, wss,
      xlab="Number of clusters K",
      ylab="Total within-clusters sum of squares")
 
-kmeans <- kmeans(dfsub[,c('AvgPrice','SellerAuctionSaleCount')], 2)
-# kmeans <- kmeans(dfsub, 2)
-print(kmeans3)
-# dfsub_c <- as.data.table(cbind(dfsub, cluster = kmeans$cluster))
-dfsub_c <- as.data.table(cbind(df, cluster = kmeans$cluster))
-library(miceadds)
-library(multiwayvcov)
-
-mod1 <- miceadds::lm.cluster( data=kw_with_cluster, formula=Price ~ IsHOF + StartingBid,
-                              cluster="cluster" )
-coef(mod1)
-vcov(mod1)
-summary(mod1)
+# kmeans <- kmeans(dfsub[,c('AvgPrice','SellerAuctionSaleCount')], 2)
+kmeans <- kmeans(df[,c('AvgPrice','AuctionHitCountAvgRatio')], 2)
+# df.c <- as.data.table(cbind(dfsub, cluster = kmeans$cluster))
+df.c <- as.data.table(cbind(df, cluster = kmeans$cluster))
 
 
 
-#Forward selection
-fullmod <- miceadds::lm.cluster( data=kw_with_cluster, 
-                                 formula=Price ~ IsHOF + StartingBid 
-                                 + StartingBidPercent + ItemAuctionSellPercent + AuctionHitCountAvgRatio 
-                                 +AuctionCount + AuctionMedianPrice, cluster="cluster" )
-coef(fullmod)
-vcov(fullmod)
-summary(fullmod)
-# nothing <- glm(formula = flushot~1, family = binomial(link="logit"), data = df1414)
 
-backward = step(fullmod)
+par(mfrow=c(1,2))
 
-predict(fullmod)
+ggplot(data = df.c[cluster == 1], 
+       aes(x = StartingBid, y = AvgPrice, color = Price)) + geom_point()
+ggplot(data = df.c[cluster == 2], 
+       aes(x = StartingBid, y = AvgPrice, color = Price)) + geom_point()
 
 
-pairs(dfsub)
 
 full.fmla <- as.formula(Price ~ IsHOF + StartingBid 
-+ StartingBidPercent + ItemAuctionSellPercent + AuctionHitCountAvgRatio 
-+AuctionCount + AuctionMedianPrice)
+                        + StartingBidPercent + ItemAuctionSellPercent +  SellerAuctionSaleCount
+                        +AuctionCount + AuctionMedianPrice)
 
-num.clust <- length(unique(dfsub_c$cluster))
-# Normalize data
-varscale <- c("Price","AuctionMedianPrice", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
-              "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
-
-dfsub_c <- as.data.table(dfsub_c %>% mutate_each_(funs(scale(.) %>% as.vector),
-                             vars=features))
-
-dfsub_c$Price <- log(dfsub_c$Price)
+num.clust <- length(unique(df.c$cluster))
 
 for(i in 1:num.clust){
-  dfsub_c[cluster == i]
-  full <- lm(formula = full.fmla, data = dfsub_c[cluster == i])
-  empty <- lm(formula = Price~-1, data = dfsub_c[cluster == i])
-  assign(paste('backward', i, sep = '.'),step(full, trace = 1))
+  df.c[cluster == i]
+  full <- lm(formula = full.fmla, data = df.c[cluster == i])
+  empty <- lm(formula = Price~-1, data = df.c[cluster == i])
+  assign(paste('backward', i, sep = '.'),step(full, trace = 0))
   assign(paste('forward', i, sep = '.'),step(empty, scope=list(lower=formula(empty),
                                                                upper=formula(full)),
                                              direction = 'forward', trace = 0))
@@ -106,14 +80,32 @@ for(i in 1:num.clust){
 
 summary(forward.1)
 summary(forward.2)
-summary(forward.3)
-summary(forward.4)
 
-summary(both.1)
-summary(both.2)
+total <- step(lm(formula = full.fmla, data = df.c), trace = 0)
+
+
+#function to classify a new object into a cluster
+closest.cluster <- function(x, km) {
+  cluster.dist <- apply(km$centers, 1, function(y) sqrt(sum((x-y)^2)))
+  return(which.min(cluster.dist)[1])
+}
+
+test.clust <- apply(test[,c('AvgPrice', 'AuctionHitCountAvgRatio')], 
+                    1, function(x) closest.cluster(x, kmeans))
+
+
+test.c <- as.data.table(cbind(test, cluster = test.clust))
+
+test_pred.1 <- predict(backward.1, test.c[cluster == 1])
+test_pred.2 <- predict(backward.2, test.c[cluster == 2])
+test_pred.total <- predict(total, test.c)
+
+rmse.1 <- caret::RMSE(test.c[cluster == 1, Price],exp(test_pred.1))
+rmse.2 <- caret::RMSE(test.c[cluster == 2, Price], exp(test_pred.2))
+trmse <- caret::RMSE(test.c[, Price], exp(test_pred.total))
 
 full.nocluster <- step(lm(formula = full.fmla, data = dfsub), trace =0)
-# summary(step(lm(formula = full.fmla, data = dfsub_c), trace =0))
+# summary(step(lm(formula = full.fmla, data = df.c), trace =0))
 summary(full.nocluster)
 sum(full.nocluster$residuals^2/length(full.nocluster$residuals))
 
@@ -123,7 +115,7 @@ sum(full.nocluster$residuals^2/length(full.nocluster$residuals))
 coeffs1 <- names(both.1$coefficients)
 coeffs1 <- c(coeffs1[2:length(coeffs1)])
 
-dfsub.1 <- dfsub_c[cluster == 1]
+dfsub.1 <- df.c[cluster == 1]
 prin_comp <- as.data.table(prcomp(dfsub.1[,.(AuctionMedianPrice,AuctionCount,ItemAuctionSellPercent)], scale. = T))
 prin_comp <- prcomp(dfsub.1[,-c('Price')])
 biplot(prin_comp, scale = 0)
@@ -143,11 +135,7 @@ summary(reg.pca)
 sum(reg.pca$residuals^2/length(reg.pca$residuals))
 
 
-#function to classify a new object into a cluster
-closest.cluster <- function(x) {
-  cluster.dist <- apply(km$centers, 1, function(y) sqrt(sum((x-y)^2)))
-  return(which.min(cluster.dist)[1])
-}
+
 # clusters2 <- apply(df2, 1, closest.cluster)
 
 
@@ -157,4 +145,35 @@ closest.cluster <- function(x) {
 # nComp = 2
 # Xhat = Xpca$x[,1:nComp] %*% t(Xpca$rotation[,1:nComp])
 # Xhat = scale(Xhat, center = -mu, scale = FALSE)
+
+
+
+##########################
+##########################
+##########################
+##########################
+### Useless 
+
+library(miceadds)
+library(multiwayvcov)
+
+
+
+mod1 <- miceadds::lm.cluster( data=kw_with_cluster, formula=Price ~ IsHOF + StartingBid,
+                              cluster="cluster" )
+coef(mod1)
+vcov(mod1)
+summary(mod1)
+
+
+
+# Normalize data
+varscale <- c("Price","AuctionMedianPrice", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
+              "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
+
+df.c <- as.data.table(df.c %>% mutate_each_(funs(scale(.) %>% as.vector),
+                                                  vars=features))
+
+df.c$Price <- log(df.c$Price)
+
 
