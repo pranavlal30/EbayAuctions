@@ -48,9 +48,10 @@ BestSubset <-glmulti(formula(testModel), data = EbayAuctions,
 ##Random Forest
 library(randomForest)
 
-rfModel <- randomForest(QuantitySold ~ ., data = EbayAuctions)
-
-
+rfModel <- randomForest(QuantitySold ~ ., data = EbayAuctions, ntree = 100)
+test.pred <- predict(rfModel, TestData, type = 'response')
+cm <- confusionMatrix(test.pred, TestData$QuantitySold)
+cm$byClass
 ##LDA
 
 ldaModel <- lda(QuantitySold ~ ., data = EbayAuctions)
