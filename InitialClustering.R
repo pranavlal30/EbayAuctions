@@ -11,16 +11,16 @@ library(dplyr)
 ###        - plot ? Do the CART method & Clustering regression, compare results
 
 
-features <- c('Price', 'Category', 'IsHOF', 'SellerAuctionCount', 'SellerAuctionSaleCount',
-              'StartingBid', 'EndDay')
+# features <- c('Price', 'Category', 'IsHOF', 'SellerAuctionCount', 'SellerAuctionSaleCount',
+               # 'StartingBid', 'EndDay')
 
 #alternative - need to check
-# features <- c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
-              # "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
+features <- c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
+"AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
 
 df <- fread('Data/TrainingSet.csv', select = features)
 df2 <- fread('Data/TrainingSet.csv')
-dfsub <- df[sample(nrow(df), 1000)]
+dfsub <- df[sample(nrow(df), 10000)]
 dfsub2 <- df2[sample(nrow(df), 1000)]
 
 plot(dfsub$AvgPrice, dfsub$SellerAuctionSaleCount)
@@ -47,8 +47,8 @@ plot(1:k.max, wss,
 kmeans <- kmeans(dfsub[,c('AvgPrice','SellerAuctionSaleCount')], 2)
 # kmeans <- kmeans(dfsub, 2)
 print(kmeans3)
-dfsub_c <- as.data.table(cbind(dfsub, cluster = kmeans$cluster))
-
+# dfsub_c <- as.data.table(cbind(dfsub, cluster = kmeans$cluster))
+dfsub_c <- as.data.table(cbind(df, cluster = kmeans$cluster))
 library(miceadds)
 library(multiwayvcov)
 
@@ -88,6 +88,9 @@ varscale <- c("Price","AuctionMedianPrice", "AvgPrice", "ItemAuctionSellPercent"
 
 dfsub_c <- as.data.table(dfsub_c %>% mutate_each_(funs(scale(.) %>% as.vector),
                              vars=features))
+
+dfsub_c$Price <- log(dfsub_c$Price)
+
 for(i in 1:num.clust){
   dfsub_c[cluster == i]
   full <- lm(formula = full.fmla, data = dfsub_c[cluster == i])

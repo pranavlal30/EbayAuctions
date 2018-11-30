@@ -70,7 +70,6 @@ ggplot(data = as.data.frame(results), aes(x = seq(1,100,10), y = Sensitivity)) +
   xlab("No. of Trees") + ylab("Metrics Value")
   title(main = "Comparing performance of different no. of trees")
   
-
 ##LDA
 
 ldaModel <- lda(QuantitySold ~ ., data = EbayAuctions)

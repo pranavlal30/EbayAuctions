@@ -16,6 +16,7 @@ nrow(EbayAuctions[IsHOF == 0,])
 plot(ebay.subset$StartingBid, (ebay.subset$Price-ebay.subset$StartingBid))
 
 #Same with only the ones that has been sold
+#We don't want to be confused with the ones that have not been sold (Price = Start Price)
 ebay.sold <- ebay.subset[QuantitySold == 1]
 plot(ebay.sold$StartingBid, (ebay.sold$Price-ebay.sold$StartingBid))
 
@@ -79,10 +80,6 @@ fit <- randomForest(factor(QuantitySold) ~ ., data = ebay.subset[1:10000,])
 library(caret)
 varImpPlot(fit)
 
-<<<<<<< HEAD
-#
-
-=======
 #Scatterplots 
 
 # pairs(~Price+StartingBid+SellerAuctionCount+HitCount,data=EbayAuctions, 
