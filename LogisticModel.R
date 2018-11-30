@@ -237,29 +237,6 @@ test_pred <- ifelse(test_pred > 0.5, 1, 0)
 confusionMatrix(as.factor(test_pred), as.factor(TestData$QuantitySold))
 
 
-####Higher Order Terms####
-
-formula(weightedModel2)
-
-# newdat <- data.frame(StartingBidPercent = seq(min(EbayAuctions$StartingBidPercent), max(EbayAuctions$StartingBidPercent),len=nrow(EbayAuctions)))
-# newdat$Y <- EbayAuctions$QuantitySold
-# newdat$Y_logit = weightedModel2$fitted.values
-# plot(Y ~ StartingBidPercent, data = newdat)
-# lines(weightedModel2$fitted.values ~ EbayAuctions$StartingBidPercent, col="green4", lwd=2)
-# lines(lowess(df$Y ~ df$X, f = 0.8), col='blue', lwd=2)
-# legend(x = 400, y = 0.9, legend = c('logit', 'lowess'), lty = c(1,1), col = c('green4', 'blue'))
-
-
-higherOrder <- glm(QuantitySold ~ . + poly(HitCount,2) + poly(SellerClosePercent,2), data = EbayAuctions, family = binomial(link = "logit"), weights = weights)
-#Train accuracy
-threshold = 0.5
-trainPredictions <- factor( ifelse(higherOrder$fitted.values > threshold, 1, 0))
-confusionMatrix(trainPredictions, EbayAuctions$QuantitySold)
-
-#Test Prediction
-test_pred <- predict(higherOrder, TestData, type = "response")
-test_pred <- ifelse(test_pred > 0.5, 1, 0)
-confusionMatrix(as.factor(test_pred), as.factor(TestData$QuantitySold))
 
 ##Best subset
 library(glmulti)
@@ -276,11 +253,12 @@ BestSubset <-glmulti(formula(testModel), data = EbayAuctions,
 
 r_O <- residuals(weightedModel2, type="response") # ordinary residual
 r_P <- residuals(weightedModel2, type="pearson") # Pearson residual
-X <- model.matrix(weightedModel2)
-W <- diag(weightedModel2$weights)
-W2 <- diag(sqrt(weightedModel2$weights))
-H <- W2%*%X%*%solve(t(X)%*%W%*%X)%*%t(X)%*%W2
-r_SP <- residuals(weightedModel2, type="pearson")/sqrt(1-diag(H))
+# X <- model.matrix(weightedModel2)
+# W <- diag(weightedModel2$weights)
+# W2 <- diag(sqrt(weightedModel2$weights))
+# H <- W2%*%X%*%solve(t(X)%*%W%*%X)%*%t(X)%*%W2
+r_SP <- residuals(weightedModel2, type="standard.pearson")
+r_SP <- r_P/sqrt(1 - hatvalues(weightedModel2))
 r_D <- residuals(weightedModel2, type="deviance") # Deviance residual
 
 plot(weightedModel2$fitted.values,r_O,main="ordinary residuals vs probabilities",
@@ -291,13 +269,16 @@ plot(weightedModel2$fitted.values,r_P,main="Pearson residuals vs probabilities",
      xlab="Estimated Probability",ylab="Pearson Residuals")
 lines(lowess(weightedModel2$fitted.values,r_P, f = 0.8), col='red', lwd=2)
 
+plot(weightedModel2$fitted.values,r_SP,main="Studentized Pearson residuals vs probabilities",
+     xlab="Estimated Probability",ylab="Studentized Pearson Residuals", ylim = c(-5,5), xlim = c(0,1))
+lines(lowess(weightedModel2$fitted.values,r_SP, f = 0.8), col='red', lwd=2)
+
+plot(weightedModel2$fitted.values,r_D,main="Deviance residuals vs probabilities",
+     xlab="Estimated Probability",ylab="Deviance Pearson Residuals")
+lines(lowess(weightedModel2$fitted.values,r_D, f = 0.8), col='red', lwd=2)
+
 ####MAJOR OUTLIERS IN ABOVE PLOT
 
-#Restricting y limits to ignore outliers
-
-plot(weightedModel2$fitted.values,r_P,main="Pearson residuals vs probabilities",
-     xlab="Estimated Probability",ylab="Pearson Residuals", ylim = c(-5,5), xlim = c(0,1))
-lines(lowess(weightedModel2$fitted.values,r_P, f = 0.8), col='red', lwd=2)
 
 #Plot the pearson residuals
 length(r_P[abs(r_P) > 100])
@@ -311,25 +292,6 @@ hist(r_P[abs(r_P) < 5])
 plot(weightedModel2$fitted.values,r_P,main="Pearson residuals vs probabilities",
      xlab="Estimated Probability",ylab="Pearson Residuals", ylim = c(-5,5), xlim = c(0,1))
 lines(lowess(weightedModel2$fitted.values,r_P, f = 0.8), col='red', lwd=2)
-
-# plot(weightedModel2$fitted.values,r_SP,main="Studentized Pearson residuals vs probabilities",
-#      xlab="Estimated Probability",ylab="Studentized Pearson Residuals")
-# plot(weightedModel2$fitted.values,r_D,main="Deviance residuals vs probabilities",
-#      xlab="Estimated Probability",ylab="Deviance Pearson Residuals")
-
-# #Residuals vs fitted probabilities
-# 
-# 
-# plot(fitted(weightedModel2), rstandard(weightedModel2),
-#      xlab = "Fitted values")
-# lines(lowess(fitted(weightedModel2), rstandard(weightedModel2), f = 0.8), col='red', lwd=2)
-# 
-# #Deviance residuals vs fitted probabilities
-# 
-# plot(fitted(weightedModel2), rstandard(weightedModel2, type = "deviance"),
-#      xlab = "Fitted values",
-#      ylab = "Deviance residuals")
-# lines(lowess(fitted(weightedModel2), rstandard(weightedModel2, type = "deviance"), f = 0.8), col='red', lwd=2)
 
 ##Both above plots point to a good fit.
 
@@ -358,4 +320,67 @@ for(predictor in predictors){
   }
 }
 
+#Hosmer-Lemshow test
+library(ResourceSelection)
+ht <- hoslem.test(weightedModel2$y, fitted(weightedModel2), g=10)
 
+
+for (i in 5:100) {
+  print(hoslem.test(weightedModel2$y, fitted(weightedModel2), g=i)$p.value)
+}
+
+#AUC Test
+
+library(pROC)
+roc_train <- roc(EbayAuctions$QuantitySold, weightedModel2$fitted.values)
+plot(roc_train, print.auc=TRUE)
+
+roc_test <- roc(TestData$QuantitySold, test_pred)
+plot(roc_test, print.auc=TRUE)
+
+
+
+df <- EbayAuctions[sample(nrow(EbayAuctions), 10000), ]
+subset_weights <- rep(3, nrow(df))
+for(i in 1:nrow(df)){
+  if(df$QuantitySold[i] == 0){
+    subset_weights[i] <- 1
+  }
+}
+subsetModel <- glm(QuantitySold ~ ., data = df, family = binomial(link = "logit"), weights = subset_weights)
+
+
+####Higher Order Terms####
+
+
+
+higherOrder <- glm(QuantitySold ~ . + poly(HitCount,2) + poly(SellerClosePercent,2), data = EbayAuctions, family = binomial(link = "logit"), weights = weights)
+#Train accuracy
+threshold = 0.5
+trainPredictions <- factor( ifelse(higherOrder$fitted.values > threshold, 1, 0))
+confusionMatrix(trainPredictions, EbayAuctions$QuantitySold)
+
+#Test Prediction
+test_pred <- predict(higherOrder, TestData, type = "response")
+test_pred <- ifelse(test_pred > 0.5, 1, 0)
+confusionMatrix(as.factor(test_pred), as.factor(TestData$QuantitySold))
+
+
+#Likelihood ratio test
+
+LR <- logLik(weightedModel2)
+LF <- logLik(higherOrder)
+
+Gsq <- -2*(LR[1] - LF[1])
+chi.crit <- pchisq(0.95, 3)
+
+if(Gsq <= chi.crit){
+  print("Conclude H0 <- All second order terms can be rejected.")
+} else{
+  print("Conclude Ha <- Not all second order terms can be rejected.")
+}
+
+#P-value
+sprintf("The p-value of the above test is %f", pchisq(Gsq, 3, lower.tail = FALSE))
+
+names(EbayAuctions)
