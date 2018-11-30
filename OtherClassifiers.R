@@ -48,8 +48,28 @@ BestSubset <-glmulti(formula(testModel), data = EbayAuctions,
 ##Random Forest
 library(randomForest)
 
-rfModel <- randomForest(QuantitySold ~ ., data = EbayAuctions)
+rfModel <- randomForest(QuantitySold ~ ., data = EbayAuctions, ntree = 10)
+test_pred <- predict(rfModel, TestData, type = "response")
+confusionMatrix(test_pred, TestData$QuantitySold)$byClass
+library(foreach)
+results <- c()
+foreach(p =  1:10) %do%{
+  tree <- p
+  rfModel <- randomForest(QuantitySold ~ ., data = EbayAuctions, ntree = tree)
+  test_pred <- predict(rfModel, TestData, type = "response")
+  conf <- confusionMatrix(test_pred, TestData$QuantitySold)
+  results <- rbind(results, conf$byClass)
+}
 
+library(ggplot2)
+ggplot(data = as.data.frame(results), aes(x = seq(1,100,10), y = Sensitivity)) + 
+  geom_line(data = as.data.frame(results), aes(y = Sensitivity, colour = "red")) + 
+  geom_line(data = as.data.frame(results), aes(y = Specificity, colour = "green")) + 
+  geom_line(data = as.data.frame(results), aes(y = F1, colour = "blue")) +
+  scale_color_discrete(name = "Metric", labels = c("Sensitivity", "Specificity", "F1-Score")) +
+  xlab("No. of Trees") + ylab("Metrics Value")
+  title(main = "Comparing performance of different no. of trees")
+  
 
 ##LDA
 

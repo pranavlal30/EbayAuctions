@@ -53,17 +53,13 @@ testModel <- glm(QuantitySold ~ ., data = EbayAuctions, family = binomial(link =
 #Train accuracy
 threshold = 0.5
 trainPredictions <- factor( ifelse(testModel$fitted.values > threshold, 1, 0))
-confusionMatrix(trainPredictions, EbayAuctions$QuantitySold)
+confusionMatrix(trainPredictions, EbayAuctions$QuantitySold)$byClass
 
 #Test Prediction
 test_pred <- predict(testModel, TestData, type = "response")
 test_pred <- ifelse(test_pred > 0.5, 1, 0)
 confusionMatrix(as.factor(test_pred), as.factor(TestData$QuantitySold))
-
-#K-fold cross validation
-ctrl <- trainControl(method = "cv",
-                     number = 10)
-kfoldFit <- train(as.factor(QuantitySold) ~ ., data = EbayAuctions, family = binomial(link = "logit"), trControl = ctrl)
+confusionMatrix(as.factor(test_pred), as.factor(TestData$QuantitySold))$byClass
 
 
 #Backward step feature selection
@@ -73,14 +69,13 @@ backward$anova
 backward$formula
 plot(backward$anova$AIC, xlab = "Step", type = 'l')
 threshold = 0.5
-trainPredictions <- factor( ifelse(fit$fitted.values > threshold, 2, 1) )
-conf1 <- confusionMatrix(trainPredictions, dfTrain[, V25])
 backwardModel <- glm(backward$formula, data = EbayAuctions, family = binomial(link = "logit"))
 back_pred <- predict(backwardModel, TestData, type = "response")
 back_pred <- ifelse(back_pred > 0.5, 1, 0)
 confusionMatrix(as.factor(back_pred), as.factor(TestData$QuantitySold))
 
 
+####Selection algorithms only get rid of ReturnsAccepted variable, which is all zeros anyway.
 
 
 #Forward Step Selection
@@ -129,25 +124,6 @@ plot(forwardModel$fitted.values[res < 1000 & res > -1000], res[res < 1000 & res 
 
 
 
-#Scaled features
-scaledData <- EbayAuctions
-scaledData$SellerClosePercent <- scaledData$SellerClosePercent * 100
-scaledData$StartingBidPercent <- scaledData$StartingBidPercent * 100
-scaledData$ItemAuctionSellPercent <- scaledData$ItemAuctionSellPercent * 100
-
-
-scaledModel <- glm(as.factor(QuantitySold) ~ HitCount + SellerClosePercent + StartingBid + 
-                      SellerSaleAvgPriceRatio + StartingBidPercent + AvgPrice + 
-                      SellerAuctionSaleCount + AuctionSaleCount + Category + AuctionCount + 
-                      IsHOF + SellerAvg + ItemListedCount + EndDay + AuctionMedianPrice + 
-                      AuctionAvgHitCount + ItemAuctionSellPercent, 
-                    data = EbayAuctions, family = binomial(link = "logit"))
-summary(scaledModel)
-scaled_pred <- predict(scaledModel, TestData, type = "response")
-scaled_pred <- ifelse(scaled_pred > 0.5, 1, 0)
-errorRate <- mean(scaled_pred != TestData$QuantitySold)
-conf <- confusionMatrix(as.factor(scaled_pred), as.factor(TestData$QuantitySold))
-conf
 
 library(corrplot)
 corrplot(cor(EbayAuctions[,-7]))
@@ -311,6 +287,8 @@ predictors <- c("StartingBidPercent", "SellerClosePercent", "Category", "Startin
 
 library(survey)
 fcrit <- qf(0.99, 1, 258521)
+waldTest <- regTermTest(weightedModel2, "StartingBidPercent", method = "Wald")
+waldTest
 for(predictor in predictors){
   waldTest <- regTermTest(weightedModel2, predictor, method = "Wald")
   if(waldTest$Ftest <= fcrit){
