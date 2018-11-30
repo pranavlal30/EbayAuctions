@@ -24,19 +24,19 @@ tree.df$IsHOF <- as.factor(tree.df$IsHOF)
 # grow tree 
 tree <- rpart(Price ~ ., method="anova", data=tree.df)
 
-printcp(fit) # display the results 
-plotcp(fit) # visualize cross-validation results 
-summary(fit) # detailed summary of splits
+printcp(tree) # display the results 
+plotcp(tree) # visualize cross-validation results 
+summary(tree) # detailed summary of splits
 
 # create additional plots 
 par(mfrow=c(1,2)) # two plots on one page 
-rsq.rpart(fit) # visualize cross-validation results  	
+rsq.rpart(tree) # visualize cross-validation results  	
 
 
 # plot tree 
-plot(fit, uniform=TRUE, 
+plot(tree, uniform=TRUE, 
      main="Classification Tree for Ebay Auction price prediction")
-text(fit, use.n=TRUE, all=TRUE, cex=.8)
+text(tree, use.n=TRUE, all=TRUE, cex=.8)
 par(mfrow=c(1,1))
 rpart.plot(fit,type=2,extra=1, cex=1)
 
