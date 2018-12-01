@@ -34,6 +34,7 @@ rsq.rpart(tree) # visualize cross-validation results
 
 
 # plot tree 
+par(mfrow=c(1,1))
 plot(tree, uniform=TRUE, 
      main="Classification Tree for Ebay Auction price prediction")
 text(tree, use.n=TRUE, all=TRUE, cex=.8)
@@ -59,12 +60,10 @@ text(pfit, use.n=TRUE, all=TRUE, cex=.8)
 
 #############"
 
-test.raw.data  <- read.csv(file='Data/TestSubset.csv', sep=',', h=T)
-test.data <- test.raw.data[c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent",
-                             "StartingBidPercent", "StartingBid", "AuctionHitCountAvgRatio", "Authenticated", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")]
+test.data <- fread('Data/TrainingSet.csv', select = features)
 test.data$Price=log(test.data$Price)
 
-# test.data$IsHOF <- as.factor(test.data$IsHOF)
+test.data$IsHOF <- as.factor(test.data$IsHOF)
 
 # make predictions
 predCart<-predict(tree, test.data, type = "vector")
@@ -72,7 +71,7 @@ predCart<-predict(tree, test.data, type = "vector")
 # add fields to test.data
 test.data[["SalePrice"]] <- exp(test.data$Price)
 # test.data[["SalePrice"]] <- test.data$Price
-test.data[["Prediction"]] <- exp(predCart)
+test.data[["Prediction"]] <- predCart
 # test.data[["Prediction"]] <- predCart
 test.data[["Interval"]] <- (round((test.data$Prediction)/5+1)*5)
 
@@ -80,7 +79,13 @@ test.data[["Interval"]] <- (round((test.data$Prediction)/5+1)*5)
 sqrt(mean(test.data$SalePrice-test.data$Prediction)^2)
 sd(test.data$Prediction)
 sum(test.data$SalePrice-test.data$Prediction)/sum(test.data$SalePrice)
+sum((test.data$SalePrice-test.data$Prediction)^2)
+sqrt(sum((test.data$SalePrice-test.data$Prediction)^2)/nrow(test.data))
+test.data[["ActualInterval"]] <- (round((test.data$SalePrice)/5+1)*5)
+head(test.data$Interval)
+head(test.data$ActualInterval)
 
+confusionMatrix(as.factor(test.data$Interval), as.factor(test.data$ActualInterval))
 
 # create title for results plot
 title <- paste('Auction Prediction Results - CART', sep='')
@@ -123,6 +128,7 @@ test.data[["AvgPrice"]] <- test.raw.data$AvgPrice
 
 # calculate the RMSE, standard deviation, mean difference
 sqrt(mean(test.data$SalePrice-test.data$Prediction)^2)
+sum((test.data$SalePrice-test.data$Prediction)^2)
 #MSE
 mean(test.data$SalePrice-test.data$Prediction)^2
 sd(test.data$Prediction)
@@ -133,7 +139,7 @@ sum(test.data$SalePrice-test.data$Prediction)/sum(test.data$SalePrice)
 title <- paste('Auction Prediction Results - CART', sep='')
 # create results plot
 prediction.plot <- ggplot(test.data, aes(x=SalePrice, y=Prediction)) + geom_point() + ggtitle(title)+ stat_smooth() #+ scale_y_continuous(limits = c(00, 125)) # + scale_x_continuous(limits = c(00, 325))
-print(prediction.plot)
+prediction.plot
 
 
 # 

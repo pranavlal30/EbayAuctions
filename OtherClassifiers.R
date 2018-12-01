@@ -48,25 +48,27 @@ BestSubset <-glmulti(formula(testModel), data = EbayAuctions,
 ##Random Forest
 library(randomForest)
 
-rfModel <- randomForest(QuantitySold ~ ., data = EbayAuctions, ntree = 10)
+rfModel <- randomForest(QuantitySold ~ ., data = EbayAuctions, ntree = 1)
 test_pred <- predict(rfModel, TestData, type = "response")
-confusionMatrix(test_pred, TestData$QuantitySold)$byClass
+confusionMatrix(test_pred, TestData$QuantitySold)
 library(foreach)
 results <- c()
-foreach(p =  1:10) %do%{
-  tree <- p
-  rfModel <- randomForest(QuantitySold ~ ., data = EbayAuctions, ntree = tree)
+ntrees <- c(seq(1:10),seq(20,100,10))
+foreach(ntree =  ntrees) %do%{
+  print(ntree)
+  rfModel <- randomForest(QuantitySold ~ ., data = EbayAuctions, ntree = ntree)
   test_pred <- predict(rfModel, TestData, type = "response")
   conf <- confusionMatrix(test_pred, TestData$QuantitySold)
   results <- rbind(results, conf$byClass)
 }
 
 library(ggplot2)
-ggplot(data = as.data.frame(results), aes(x = seq(1,100,10), y = Sensitivity)) + 
+ggplot(data = as.data.frame(results), aes(x = ntrees, y = Sensitivity)) + 
   geom_line(data = as.data.frame(results), aes(y = Sensitivity, colour = "red")) + 
   geom_line(data = as.data.frame(results), aes(y = Specificity, colour = "green")) + 
   geom_line(data = as.data.frame(results), aes(y = F1, colour = "blue")) +
   scale_color_discrete(name = "Metric", labels = c("Sensitivity", "Specificity", "F1-Score")) +
+  geom_vline(xintercept = 10) +
   xlab("No. of Trees") + ylab("Metrics Value")
   title(main = "Comparing performance of different no. of trees")
   
