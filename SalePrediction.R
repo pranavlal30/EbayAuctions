@@ -1,14 +1,14 @@
 library(tidyr)
 
-EbayAuctions <- read.csv('Data/TrainingSet.csv')
-EbayAuctionsTest <- read.csv('Data/TestSet.csv')
+EbayAuctions <- fread('Data/TrainingSet.csv')
+EbayAuctionsTest <- fread('Data/TestSet.csv')
 head(EbayAuctions)
 names(EbayAuctions)
 summary(EbayAuctions)
 View(EbayAuctions)
-
-subsetNo <- nrow(EbayAuctions)*(0.2)
-EbayAuctions <- EbayAuctions[1:subsetNo,]
+# 
+# subsetNo <- nrow(EbayAuctions)*(0.2)
+# EbayAuctions <- EbayAuctions[1:subsetNo,]
 ## Plotting to check the skewness of the target variable
 d <- density(EbayAuctions$Price)
 plot(d, main="Auction Price")
@@ -21,8 +21,10 @@ polygon(d, col="red", border="blue")
 features <- c("AuctionMedianPrice", "Price", "AvgPrice", "ItemListedCount", "StartingBid",
              "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "SellerItemAvg", "AuctionCount", "AuctionSaleCount", "SellerAvg")
 
-EbayAuctions <- EbayAuctions[,features]
-EbayAuctionsTest <- EbayAuctionsTest[,features]
+EbayAuctions <- fread('Data/TrainingSet.csv', select = features)
+EbayAuctionsTest <- fread('Data/TestSet.csv', select = features)
+# EbayAuctions <- EbayAuctions[,features]
+# EbayAuctionsTest <- EbayAuctionsTest[,features]
 
 
 
@@ -36,7 +38,7 @@ EbayAuctionsTest <- EbayAuctionsTest[,-c(1,3,9,6,21)]
 
 
 ### Generating full linear regression model 
-linear.model <- lm(LogPrice ~ ., data = EbayAuctions)
+linear.model <- lm(LogPrice ~ ., data = EbayAuctions[,-c('Price')])
 summary(linear.model)
 
 predictions <- predict(linear.model, EbayAuctionsTest)

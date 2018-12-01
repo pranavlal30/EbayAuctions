@@ -9,94 +9,50 @@ library(dplyr)
 # features <- c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
 # "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
 # 
+
 features <- c('Price', 'StartingBid', 'AuctionMedianPrice', 'AuctionCount',
-              'AuctionHitCountAvgRatio', 'SellerItemAvg', 'AuctionSaleCount',
+              'AuctionHitCountAvgRatio', 'SellerItemAvg', 'AuctionSaleCount', 
               'SellerAvg', 'ItemListedCount', 'AvgPrice', 'SellerSaleAvgPriceRatio')
 
 
-
 df <- fread('Data/TrainingSet.csv', select = features)
-df2 <- fread('Data/TrainingSet.csv')
-dfsub <- df[sample(nrow(df), 10000)]
-dfsub2 <- df2[sample(nrow(df), 1000)]
 
-plot(dfsub$AvgPrice, dfsub$SellerAuctionSaleCount)
+test <- fread('Data/TestSet.csv')
 
-av <- dfsub2[, .(avg = mean(Price)), by='Category']
-av <- av[order(avg),]
 
-barplot(av$avg, av$Category)
-barplot(log(av$avg), av$Category)
-#Check the "optimal" number of clusters with elbow curve
-set.seed(123)
-# Compute and plot wss for k = 2 to k = 6.
-k.max <- 6
-data <- dfsub[,c('AvgPrice','SellerAuctionSaleCount')]#scaled_data
-# data <- dfsub
-wss <- sapply(1:k.max, 
-              function(k){kmeans(data, k,iter.max = 15 )$tot.withinss})
-wss
-plot(1:k.max, wss,
-     type="b", pch = 19, frame = FALSE, 
-     xlab="Number of clusters K",
-     ylab="Total within-clusters sum of squares")
+df$Price <- log(df$Price)
+df$AvgPrice <- log(df$AvgPrice)
+df$AuctionMedianPrice <- log(df$AuctionMedianPrice)
+# df$AuctionMedianPrice <- log(df$AuctionMedianPrice)
 
-kmeans <- kmeans(dfsub[,c('AvgPrice','SellerAuctionSaleCount')], 2)
-# kmeans <- kmeans(dfsub, 2)
-print(kmeans3)
-# dfsub_c <- as.data.table(cbind(dfsub, cluster = kmeans$cluster))
-dfsub_c <- as.data.table(cbind(dfsub, cluster = kmeans$cluster))
+test$AvgPrice <- log(test$AvgPrice)
+test$AuctionMedianPrice <- log(test$AuctionMedianPrice)
 
+# set.seed(124)
+# k.max <- 6
+# data <- df[,c('AvgPrice','AuctionHitCountAvgRatio')]
+# 
+# wss <- sapply(1:k.max, 
+#               function(k){kmeans(data, k,iter.max = 15 )$tot.withinss})
+# wss
+# plot(1:k.max, wss,
+#      type="b", pch = 19, frame = FALSE, 
+#      xlab="Number of clusters K",
+#      ylab="Total within-clusters sum of squares")
+# kmeans <- kmeans(dfsub[,c('AvgPrice','SellerAuctionSaleCount')], 2)
+
+kmeans <- kmeans(df[,c('AvgPrice','AuctionHitCountAvgRatio')], 2)
+# kmeans <- kmeans(as.data.frame(df$AvgPrice, log(df$AuctionHitCountAvgRatio)), 2)
+# df.c <- as.data.table(cbind(dfsub, cluster = kmeans$cluster))
+df.c <- as.data.table(cbind(df, cluster = kmeans$cluster))
 ##Plot the clusters
-dfsub_c$cluster <- as.factor(dfsub_c$cluster)
-ggplot(data = dfsub_c, aes(x = AvgPrice, y = SellerAuctionSaleCount))+
-  geom_point(data = dfsub_c, aes(x = AvgPrice, y = SellerAuctionSaleCount, col = cluster))
+df.c$cluster <- as.factor(df.c$cluster)
+ggplot(data = df.c, aes(y = AvgPrice, x = AuctionHitCountAvgRatio))+
+  geom_point(data = df.c, aes(y = AvgPrice, x = AuctionHitCountAvgRatio, col = cluster))
 
 ggplot(data = dfsub_c, aes(x = AvgPrice, y = SellerAuctionSaleCount))+
   geom_point(data = dfsub_c, aes(x = AvgPrice, y = SellerAuctionSaleCount, col = as.factor()))+
   scale_color_discrete(dfsub_c$cluster)
-
-library(miceadds)
-library(multiwayvcov)
-
-mod1 <- miceadds::lm.cluster( data=kw_with_cluster, formula=Price ~ IsHOF + StartingBid,
-                              cluster="cluster" )
-coef(mod1)
-vcov(mod1)
-summary(mod1)
-
-
-
-#Forward selection
-fullmod <- miceadds::lm.cluster( data=kw_with_cluster, 
-                                 formula=Price ~ IsHOF + StartingBid 
-                                 + StartingBidPercent + ItemAuctionSellPercent + AuctionHitCountAvgRatio 
-                                 +AuctionCount + AuctionMedianPrice, cluster="cluster" )
-coef(fullmod)
-vcov(fullmod)
-summary(fullmod)
-# nothing <- glm(formula = flushot~1, family = binomial(link="logit"), data = df1414)
-
-backward = step(fullmod)
-
-predict(fullmod)
-
-
-pairs(dfsub)
-
-full.fmla <- as.formula(Price ~ IsHOF + StartingBid 
-+ StartingBidPercent + ItemAuctionSellPercent + AuctionHitCountAvgRatio 
-+AuctionCount + AuctionMedianPrice)
-
-num.clust <- length(unique(dfsub_c$cluster))
-# Normalize data
-varscale <- c("Price","AuctionMedianPrice", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
-              "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
-
-dfsub_c <- as.data.table(dfsub_c %>% mutate_each_(funs(scale(.) %>% as.vector),
-                             vars=features))
-
-dfsub_c$Price <- log(dfsub_c$Price)
 
 
 test <- fread('Data/TestSet.csv')
@@ -195,19 +151,20 @@ caret::RMSE(log(test.c[cluster == 1, Price]),(test_pred.1))
 caret::RMSE(log(test.c[cluster == 2, Price]), (test_pred.2))
 caret::RMSE(log(test.c[, Price]), (test_pred.total))
 
+caret::RMSE((test.c[cluster == 1, Price]),exp(test_pred.1))
+caret::RMSE((test.c[cluster == 2, Price]), exp(test_pred.2))
+caret::RMSE((test.c[, Price]), exp(test_pred.total))
+
 cust.rmse <- function(actual, predicted){
   
   diff <- (actual - predicted)^2
   print(length(diff))
-  print(length(which(diff < 1000)))
-  print(sum(diff[which(diff < 1000)]))
-  # apply(diff, FUN = function(x) x^2)
-  # print(diff)
-  # 
-  # for(i in cbind(actual, predicted)){
-  #   print((i[1]-i$)^2)
-  # }
-  # 
+  n <- length(diff)
+  print(length(which(diff < 30^2)))
+  # print(sum(diff[which(diff < 100^2)]))
+  SSE <- sum(diff[which(diff < 30^2)])
+  RMSE <- sqrt(1/n*SSE)
+  print(RMSE)
 }
 
 
