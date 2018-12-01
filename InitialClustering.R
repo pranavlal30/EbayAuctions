@@ -5,10 +5,6 @@ library(data.table)
 library(rpart.plot)
 library(dplyr)
 
-#
-# features <- c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
-# "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
-# 
 
 features <- c('Price', 'StartingBid', 'AuctionMedianPrice', 'AuctionCount',
               'AuctionHitCountAvgRatio', 'SellerItemAvg', 'AuctionSaleCount', 
@@ -23,7 +19,6 @@ test <- fread('Data/TestSet.csv')
 df$Price <- log(df$Price)
 df$AvgPrice <- log(df$AvgPrice)
 df$AuctionMedianPrice <- log(df$AuctionMedianPrice)
-# df$AuctionMedianPrice <- log(df$AuctionMedianPrice)
 
 test$AvgPrice <- log(test$AvgPrice)
 test$AuctionMedianPrice <- log(test$AuctionMedianPrice)
