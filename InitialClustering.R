@@ -5,18 +5,15 @@ library(data.table)
 library(rpart.plot)
 library(dplyr)
 
+# 
+# features <- c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
+# "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
 
-### TODO : - ACP on those features to find 2 variables with the highest contribution to the variance
-###        - Use those 2 variables for clustering
-###        - plot ? Do the CART method & Clustering regression, compare results
+features <- c('Price', 'StartingBid', 'AuctionMedianPrice', 'AuctionCount',
+              'AuctionHitCountAvgRatio', 'SellerItemAvg', 'AuctionSaleCount', 
+              'SellerAvg', 'ItemListedCount', 'AvgPrice', 'SellerSaleAvgPriceRatio')
 
 
-# features <- c('Price', 'Category', 'IsHOF', 'SellerAuctionCount', 'SellerAuctionSaleCount',
-               # 'StartingBid', 'EndDay')
-
-#alternative - need to check
-features <- c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
-"AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
 
 df <- fread('Data/TrainingSet.csv', select = features)
 df2 <- fread('Data/TrainingSet.csv')
@@ -101,70 +98,109 @@ dfsub_c <- as.data.table(dfsub_c %>% mutate_each_(funs(scale(.) %>% as.vector),
 
 dfsub_c$Price <- log(dfsub_c$Price)
 
+
+test <- fread('Data/TestSet.csv')
+
+
+df$Price <- log(df$Price)
+# df$AvgPrice <- log(df$AvgPrice)
+# df$AuctionMedianPrice <- log(df$AuctionMedianPrice)
+
+
+# test$AvgPrice <- log(test$AvgPrice)
+# test$AuctionMedianPrice <- log(test$AuctionMedianPrice)
+# 
+# plot(dfsub$AvgPrice, dfsub$SellerAuctionSaleCount)
+# df2 <- fread('Data/TrainingSet.csv')
+# 
+# av <- df2[, .(avg = mean(Price)), by='Category']
+# av <- av[order(avg),]
+# 
+# barplot(av$avg, av$Category, main = "Price frequency by category")
+# barplot(log(av$avg), av$Category)
+
+# set.seed(124)
+# k.max <- 6
+# data <- df[,c('AvgPrice','AuctionHitCountAvgRatio')]
+# 
+# wss <- sapply(1:k.max, 
+#               function(k){kmeans(data, k,iter.max = 15 )$tot.withinss})
+# wss
+# plot(1:k.max, wss,
+#      type="b", pch = 19, frame = FALSE, 
+#      xlab="Number of clusters K",
+#      ylab="Total within-clusters sum of squares")
+
+# kmeans <- kmeans(dfsub[,c('AvgPrice','SellerAuctionSaleCount')], 2)
+kmeans <- kmeans(df[,c('AvgPrice','AuctionHitCountAvgRatio')], 2)
+# df.c <- as.data.table(cbind(dfsub, cluster = kmeans$cluster))
+df.c <- as.data.table(cbind(df, cluster = kmeans$cluster))
+
+
+
+# full.fmla <- as.formula(Price ~  StartingBid 
+#                         + StartingBidPercent + ItemAuctionSellPercent +  SellerAuctionSaleCount
+#                         +AuctionCount + AuctionMedianPrice)
+
+full.fmla <- as.formula(Price ~ .)
+
+num.clust <- length(unique(df.c$cluster))
+
 for(i in 1:num.clust){
-  dfsub_c[cluster == i]
-  full <- lm(formula = full.fmla, data = dfsub_c[cluster == i])
-  empty <- lm(formula = Price~-1, data = dfsub_c[cluster == i])
-  assign(paste('backward', i, sep = '.'),step(full, trace = 1))
+  df.c[cluster == i]
+  full <- lm(formula = full.fmla, data = df.c[cluster == i, -c('cluster')])
+  empty <- lm(formula = Price~-1, data = df.c[cluster == i, -c('cluster')])
+  # assign(paste('backward', i, sep = '.'),step(full, trace = 0))
   assign(paste('forward', i, sep = '.'),step(empty, scope=list(lower=formula(empty),
                                                                upper=formula(full)),
                                              direction = 'forward', trace = 0))
-  assign(paste('both', i, sep = '.'),step(empty, scope=list(lower=formula(empty),
-                                                               upper=formula(full)),
-                                             direction = 'both', trace = 0))
+  # assign(paste('both', i, sep = '.'),step(empty, scope=list(lower=formula(empty),
+                                                               # upper=formula(full)),
+                                             # direction = 'both', trace = 0))
 }
 
 summary(forward.1)
 summary(forward.2)
-summary(forward.3)
-summary(forward.4)
 
-summary(both.1)
-summary(both.2)
-
-full.nocluster <- step(lm(formula = full.fmla, data = dfsub), trace =0)
-# summary(step(lm(formula = full.fmla, data = dfsub_c), trace =0))
-summary(full.nocluster)
-sum(full.nocluster$residuals^2/length(full.nocluster$residuals))
-
-
-### Tests with a PCA transformation
-
-coeffs1 <- names(both.1$coefficients)
-coeffs1 <- c(coeffs1[2:length(coeffs1)])
-
-dfsub.1 <- dfsub_c[cluster == 1]
-prin_comp <- as.data.table(prcomp(dfsub.1[,.(AuctionMedianPrice,AuctionCount,ItemAuctionSellPercent)], scale. = T))
-prin_comp <- prcomp(dfsub.1[,-c('Price')])
-biplot(prin_comp, scale = 0)
-#proportion of variance explained
-pr_var <- prin_comp$sdev^2
-prop_varex <- pr_var/sum(pr_var)
-
-plot(cumsum(prop_varex), xlab = "Principal Component",
-     ylab = "Cumulative Proportion of Variance Explained",
-     type = "b")
-
-comp <- as.data.table(prin_comp$x)
-df.pca <- cbind(dfsub.1[,'Price'], comp[,c('PC1', 'PC2')])
-reg.pca <- lm(formula = Price ~ ., data = df.pca)
-summary(reg.pca)
-
-sum(reg.pca$residuals^2/length(reg.pca$residuals))
+total <- step(lm(formula = full.fmla, data = df.c), trace = 0)
 
 
 #function to classify a new object into a cluster
-closest.cluster <- function(x) {
+closest.cluster <- function(x, km) {
   cluster.dist <- apply(km$centers, 1, function(y) sqrt(sum((x-y)^2)))
   return(which.min(cluster.dist)[1])
 }
-# clusters2 <- apply(df2, 1, closest.cluster)
+
+test.clust <- apply(test[,c('AvgPrice', 'AuctionHitCountAvgRatio')], 
+                    1, function(x) closest.cluster(x, kmeans))
 
 
-## Revert PCA 
-# Xpca = prcomp(X)
-# 
-# nComp = 2
-# Xhat = Xpca$x[,1:nComp] %*% t(Xpca$rotation[,1:nComp])
-# Xhat = scale(Xhat, center = -mu, scale = FALSE)
+test.c <- as.data.table(cbind(test, cluster = test.clust))
 
+test_pred.1 <- predict(backward.1, test.c[cluster == 1])
+test_pred.2 <- predict(backward.2, test.c[cluster == 2])
+test_pred.total <- predict(total, test.c)
+
+rmse.1 <- caret::RMSE(test.c[cluster == 1, Price],exp(test_pred.1))
+rmse.2 <- caret::RMSE(test.c[cluster == 2, Price], exp(test_pred.2))
+trmse <- caret::RMSE(test.c[, Price], exp(test_pred.total))
+
+
+
+fitest <- function(model, n){
+  lan <- anova(model)
+  # n <- nrow(df)
+  len <- length(lan$Df)
+  # c = n - lan$Df[len]
+  p = len -1
+  c = p+1
+  # p = len - 1
+  
+  SSPE <- lan$`Sum Sq`[len]
+  SSLF <- sum(lan$`Sum Sq`[1:p])
+  
+  Fhat <- (SSLF/(c-p))/(SSPE/(n-c))
+  Fval <- qf(0.99,df1=(c-p),df2=(n-c))
+  print(paste('Fhat:',Fhat))
+  print(paste('Fval:',Fval))
+}
