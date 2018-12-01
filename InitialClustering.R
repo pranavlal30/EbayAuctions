@@ -35,8 +35,9 @@ plot(1:k.max, wss,
      type="b", pch = 19, frame = FALSE,
      xlab="Number of clusters K",
      ylab="Total within-clusters sum of squares")
-#####
 
+#####
+##### Clustering 
 kmeans <- kmeans(df[,c('AvgPrice','AuctionHitCountAvgRatio')], 2)
 
 df.c <- as.data.table(cbind(df, cluster = kmeans$cluster))
