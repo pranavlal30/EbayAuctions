@@ -5,12 +5,12 @@ library(data.table)
 library(rpart.plot)
 library(dplyr)
 
-# 
+#
 # features <- c("AuctionMedianPrice", "Price", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
 # "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
-
+# 
 features <- c('Price', 'StartingBid', 'AuctionMedianPrice', 'AuctionCount',
-              'AuctionHitCountAvgRatio', 'SellerItemAvg', 'AuctionSaleCount', 
+              'AuctionHitCountAvgRatio', 'SellerItemAvg', 'AuctionSaleCount',
               'SellerAvg', 'ItemListedCount', 'AvgPrice', 'SellerSaleAvgPriceRatio')
 
 
@@ -103,11 +103,12 @@ test <- fread('Data/TestSet.csv')
 
 
 df$Price <- log(df$Price)
-# df$AvgPrice <- log(df$AvgPrice)
+df$AvgPrice <- log(df$AvgPrice)
+df$AuctionMedianPrice <- log(df$AuctionMedianPrice)
 # df$AuctionMedianPrice <- log(df$AuctionMedianPrice)
 
-
-# test$AvgPrice <- log(test$AvgPrice)
+test$AvgPrice <- log(test$AvgPrice)
+test$AuctionMedianPrice <- log(test$AuctionMedianPrice)
 # test$AuctionMedianPrice <- log(test$AuctionMedianPrice)
 # 
 # plot(dfsub$AvgPrice, dfsub$SellerAuctionSaleCount)
@@ -154,15 +155,20 @@ for(i in 1:num.clust){
   assign(paste('forward', i, sep = '.'),step(empty, scope=list(lower=formula(empty),
                                                                upper=formula(full)),
                                              direction = 'forward', trace = 0))
-  # assign(paste('both', i, sep = '.'),step(empty, scope=list(lower=formula(empty),
-                                                               # upper=formula(full)),
-                                             # direction = 'both', trace = 0))
+  assign(paste('both', i, sep = '.'),step(empty, scope=list(lower=formula(empty),
+                                                               upper=formula(full)),
+                                             direction = 'both', trace = 0))
 }
 
 summary(forward.1)
 summary(forward.2)
 
-total <- step(lm(formula = full.fmla, data = df.c), trace = 0)
+summary(both.1)
+summary(both.2)
+
+empty <- lm(formula = Price~-1, data = df.c[,-c('cluster')])
+total <- step(empty, scope=list(lower=Price ~ -1, upper=full.fmla),
+              direction = 'forward', trace = 0)
 
 
 #function to classify a new object into a cluster
@@ -177,14 +183,32 @@ test.clust <- apply(test[,c('AvgPrice', 'AuctionHitCountAvgRatio')],
 
 test.c <- as.data.table(cbind(test, cluster = test.clust))
 
-test_pred.1 <- predict(backward.1, test.c[cluster == 1])
-test_pred.2 <- predict(backward.2, test.c[cluster == 2])
+test_pred.1 <- predict(forward.1, test.c[cluster == 1])
+test_pred.2 <- predict(forward.2, test.c[cluster == 2])
 test_pred.total <- predict(total, test.c)
 
-rmse.1 <- caret::RMSE(test.c[cluster == 1, Price],exp(test_pred.1))
-rmse.2 <- caret::RMSE(test.c[cluster == 2, Price], exp(test_pred.2))
-trmse <- caret::RMSE(test.c[, Price], exp(test_pred.total))
+rmse.1 <- caret::RMSE(log(test.c[cluster == 1, Price]),(test_pred.1))
+rmse.2 <- caret::RMSE(log(test.c[cluster == 2, Price]), (test_pred.2))
+trmse <- caret::RMSE(log(test.c[, Price]), exp(test_pred.total))
 
+caret::RMSE(log(test.c[cluster == 1, Price]),(test_pred.1))
+caret::RMSE(log(test.c[cluster == 2, Price]), (test_pred.2))
+caret::RMSE(log(test.c[, Price]), (test_pred.total))
+
+cust.rmse <- function(actual, predicted){
+  
+  diff <- (actual - predicted)^2
+  print(length(diff))
+  print(length(which(diff < 1000)))
+  print(sum(diff[which(diff < 1000)]))
+  # apply(diff, FUN = function(x) x^2)
+  # print(diff)
+  # 
+  # for(i in cbind(actual, predicted)){
+  #   print((i[1]-i$)^2)
+  # }
+  # 
+}
 
 
 fitest <- function(model, n){
