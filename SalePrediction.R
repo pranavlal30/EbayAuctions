@@ -23,8 +23,7 @@ features <- c("AuctionMedianPrice", "Price", "AvgPrice", "ItemListedCount", "Sta
 
 EbayAuctions <- EbayAuctions[,features]
 EbayAuctionsTest <- EbayAuctionsTest[,features]
-LogEbay <- log(EbayAuctions)
-LogEbayTest <- log(EbayAuctionsTest)
+
 
 
 ###old data 
@@ -48,14 +47,19 @@ correlation_accuracy
 linear.model.log <- lm(log(Price) ~ ., data = EbayAuctions)
 summary(linear.model.log)
 
+predictions <- predict(linear.model.log, EbayAuctionsTest)
+
+actualsPred <- data.frame(cbind(actuals=EbayAuctionsTest$LogPrice, predicteds=predictions))
+correlation_accuracy <- cor(actualsPred)
+correlation_accuracy
 
 ### Lack of fit test
 
 lan <- anova(linear.model.log)
 n <- nrow(EbayAuctions)
 len <- length(lan$Df)
-c = n - lan$Df[len]
 p = len - 1
+c = p + 1
 
 SSPE <- lan$`Sum Sq`[len]
 SSLF <- sum(lan$`Sum Sq`[1:p])
@@ -190,7 +194,7 @@ X16hat = (1/sqrt(n-1))*((EbayAuctions$SellerAuctionSaleCount-X16mean)/sX16)
 X17hat = (1/sqrt(n-1))*((EbayAuctions$AuctionMedianPrice-X17mean)/sX17)
 
 ### Building the standardized regression model 
-std.lm <- lm(Yhat ~ X1hat+X2hat+X3hat+X4hat+
+std.lm <- lm(LogPrice ~ X1hat+X2hat+X3hat+X4hat+
                X5hat+X6hat+X7hat+X8hat+
                X9hat+X10hat+X11hat+X12hat+
                X13hat+X14hat+X15hat+X16hat+X17hat, data = EbayAuctions)
