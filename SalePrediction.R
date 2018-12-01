@@ -18,23 +18,14 @@ d2 <- density(log(EbayAuctions$Price))
 plot(d2, main="Log Auction Price")
 polygon(d, col="red", border="blue")
 
-features <- c("AuctionMedianPrice", "Price", "AvgPrice", "ItemListedCount", "StartingBid",
-             "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "SellerItemAvg", "AuctionCount", "AuctionSaleCount", "SellerAvg")
-
-EbayAuctions <- EbayAuctions[,features]
-EbayAuctionsTest <- EbayAuctionsTest[,features]
-LogEbay <- log(EbayAuctions)
-LogEbayTest <- log(EbayAuctionsTest)
-
-
-###old data 
 EbayAuctions$LogPrice <- log(EbayAuctions$Price)
 EbayAuctionsTest$LogPrice <- log(EbayAuctionsTest$Price)
 EbayAuctions <- EbayAuctions[,-c(1,3,9,6,21)]
 EbayAuctionsTest <- EbayAuctionsTest[,-c(1,3,9,6,21)]
+#subsetNo <- nrow(EbayAuctions) * (0.5)
+
 
 ### Generating full linear regression model 
-
 linear.model <- lm(LogPrice ~ ., data = EbayAuctions)
 summary(linear.model)
 
@@ -44,25 +35,23 @@ actualsPred <- data.frame(cbind(actuals=EbayAuctionsTest$LogPrice, predicteds=pr
 correlation_accuracy <- cor(actualsPred)
 correlation_accuracy
 
-## Model on selected features
-linear.model.log <- lm(log(Price) ~ ., data = EbayAuctions)
-summary(linear.model.log)
+### Lasso Regression
+
+library(glmnet)
+x <- model.matrix(LogPrice~.,EbayAuctions)[,-1]
+testx <- model.matrix(LogPrice~.,EbayAuctionsTest)[,-1]
+y <- as.matrix(EbayAuctions$LogPrice)
+testy <- as.matrix(EbayAuctionsTest$LogPrice)
+lambda <- 10^seq(10, -2, length = 100)
 
 
-### Lack of fit test
+lasso.mod <- glmnet(x , y, alpha=1,lambda = lambda)
+plot(lasso.mod, xvar="lambda", label=TRUE)
 
-lan <- anova(linear.model.log)
-n <- nrow(EbayAuctions)
-len <- length(lan$Df)
-c = n - lan$Df[len]
-p = len - 1
-
-SSPE <- lan$`Sum Sq`[len]
-SSLF <- sum(lan$`Sum Sq`[1:p])
-
-Fhat <- (SSLF/(c-p))/(SSPE/(n-c))
-Fval <- qf(0.99,df1=(c-p),df2=(n-c))
-
+pr.lasso = cv.glmnet(x,y,type.measure='mse', keep=TRUE, alpha=1)
+lambda.lasso = pr.lasso$lambda.min
+lambda.id <- which(pr.lasso$lambda == pr.lasso$lambda.min)
+plot(pr.lasso)
 
 ### Forward Selection Model
 library(MASS)

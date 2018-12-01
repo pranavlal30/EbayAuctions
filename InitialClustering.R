@@ -16,6 +16,87 @@ features <- c('Price', 'StartingBid', 'AuctionMedianPrice', 'AuctionCount',
 
 
 df <- fread('Data/TrainingSet.csv', select = features)
+df2 <- fread('Data/TrainingSet.csv')
+dfsub <- df[sample(nrow(df), 10000)]
+dfsub2 <- df2[sample(nrow(df), 1000)]
+
+plot(dfsub$AvgPrice, dfsub$SellerAuctionSaleCount)
+
+av <- dfsub2[, .(avg = mean(Price)), by='Category']
+av <- av[order(avg),]
+
+barplot(av$avg, av$Category)
+barplot(log(av$avg), av$Category)
+#Check the "optimal" number of clusters with elbow curve
+set.seed(123)
+# Compute and plot wss for k = 2 to k = 6.
+k.max <- 6
+data <- dfsub[,c('AvgPrice','SellerAuctionSaleCount')]#scaled_data
+# data <- dfsub
+wss <- sapply(1:k.max, 
+              function(k){kmeans(data, k,iter.max = 15 )$tot.withinss})
+wss
+plot(1:k.max, wss,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+
+kmeans <- kmeans(dfsub[,c('AvgPrice','SellerAuctionSaleCount')], 2)
+# kmeans <- kmeans(dfsub, 2)
+print(kmeans3)
+# dfsub_c <- as.data.table(cbind(dfsub, cluster = kmeans$cluster))
+dfsub_c <- as.data.table(cbind(dfsub, cluster = kmeans$cluster))
+
+##Plot the clusters
+dfsub_c$cluster <- as.factor(dfsub_c$cluster)
+ggplot(data = dfsub_c, aes(x = AvgPrice, y = SellerAuctionSaleCount))+
+  geom_point(data = dfsub_c, aes(x = AvgPrice, y = SellerAuctionSaleCount, col = cluster))
+
+ggplot(data = dfsub_c, aes(x = AvgPrice, y = SellerAuctionSaleCount))+
+  geom_point(data = dfsub_c, aes(x = AvgPrice, y = SellerAuctionSaleCount, col = as.factor()))+
+  scale_color_discrete(dfsub_c$cluster)
+
+library(miceadds)
+library(multiwayvcov)
+
+mod1 <- miceadds::lm.cluster( data=kw_with_cluster, formula=Price ~ IsHOF + StartingBid,
+                              cluster="cluster" )
+coef(mod1)
+vcov(mod1)
+summary(mod1)
+
+
+
+#Forward selection
+fullmod <- miceadds::lm.cluster( data=kw_with_cluster, 
+                                 formula=Price ~ IsHOF + StartingBid 
+                                 + StartingBidPercent + ItemAuctionSellPercent + AuctionHitCountAvgRatio 
+                                 +AuctionCount + AuctionMedianPrice, cluster="cluster" )
+coef(fullmod)
+vcov(fullmod)
+summary(fullmod)
+# nothing <- glm(formula = flushot~1, family = binomial(link="logit"), data = df1414)
+
+backward = step(fullmod)
+
+predict(fullmod)
+
+
+pairs(dfsub)
+
+full.fmla <- as.formula(Price ~ IsHOF + StartingBid 
++ StartingBidPercent + ItemAuctionSellPercent + AuctionHitCountAvgRatio 
++AuctionCount + AuctionMedianPrice)
+
+num.clust <- length(unique(dfsub_c$cluster))
+# Normalize data
+varscale <- c("Price","AuctionMedianPrice", "AvgPrice", "ItemAuctionSellPercent", "StartingBidPercent", "StartingBid",
+              "AuctionHitCountAvgRatio", "SellerSaleAvgPriceRatio", "IsHOF", "AuctionCount", "SellerAuctionSaleCount")
+
+dfsub_c <- as.data.table(dfsub_c %>% mutate_each_(funs(scale(.) %>% as.vector),
+                             vars=features))
+
+dfsub_c$Price <- log(dfsub_c$Price)
 
 
 test <- fread('Data/TestSet.csv')
