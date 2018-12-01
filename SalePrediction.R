@@ -27,13 +27,15 @@ EbayAuctionsTest <- EbayAuctionsTest[,features]
 
 
 ###old data 
+
 EbayAuctions$LogPrice <- log(EbayAuctions$Price)
 EbayAuctionsTest$LogPrice <- log(EbayAuctionsTest$Price)
 EbayAuctions <- EbayAuctions[,-c(1,3,9,6,21)]
 EbayAuctionsTest <- EbayAuctionsTest[,-c(1,3,9,6,21)]
+#subsetNo <- nrow(EbayAuctions) * (0.5)
+
 
 ### Generating full linear regression model 
-
 linear.model <- lm(LogPrice ~ ., data = EbayAuctions)
 summary(linear.model)
 
@@ -43,9 +45,8 @@ actualsPred <- data.frame(cbind(actuals=EbayAuctionsTest$LogPrice, predicteds=pr
 correlation_accuracy <- cor(actualsPred)
 correlation_accuracy
 
-## Model on selected features
-linear.model.log <- lm(log(Price) ~ ., data = EbayAuctions)
-summary(linear.model.log)
+### Lasso Regression
+
 
 predictions <- predict(linear.model.log, EbayAuctionsTest)
 
@@ -53,7 +54,14 @@ actualsPred <- data.frame(cbind(actuals=EbayAuctionsTest$LogPrice, predicteds=pr
 correlation_accuracy <- cor(actualsPred)
 correlation_accuracy
 
-### Lack of fit test
+library(glmnet)
+x <- model.matrix(LogPrice~.,EbayAuctions)[,-1]
+testx <- model.matrix(LogPrice~.,EbayAuctionsTest)[,-1]
+y <- as.matrix(EbayAuctions$LogPrice)
+testy <- as.matrix(EbayAuctionsTest$LogPrice)
+lambda <- 10^seq(10, -2, length = 100)
+
+
 
 lan <- anova(linear.model.log)
 n <- nrow(EbayAuctions)
@@ -67,6 +75,14 @@ SSLF <- sum(lan$`Sum Sq`[1:p])
 Fhat <- (SSLF/(c-p))/(SSPE/(n-c))
 Fval <- qf(0.99,df1=(c-p),df2=(n-c))
 
+lasso.mod <- glmnet(x , y, alpha=1,lambda = lambda)
+plot(lasso.mod, xvar="lambda", label=TRUE)
+
+
+pr.lasso = cv.glmnet(x,y,type.measure='mse', keep=TRUE, alpha=1)
+lambda.lasso = pr.lasso$lambda.min
+lambda.id <- which(pr.lasso$lambda == pr.lasso$lambda.min)
+plot(pr.lasso)
 
 ### Forward Selection Model
 library(MASS)
