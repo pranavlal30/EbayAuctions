@@ -48,7 +48,17 @@ kmeans <- kmeans(dfsub[,c('AvgPrice','SellerAuctionSaleCount')], 2)
 # kmeans <- kmeans(dfsub, 2)
 print(kmeans3)
 # dfsub_c <- as.data.table(cbind(dfsub, cluster = kmeans$cluster))
-dfsub_c <- as.data.table(cbind(df, cluster = kmeans$cluster))
+dfsub_c <- as.data.table(cbind(dfsub, cluster = kmeans$cluster))
+
+##Plot the clusters
+dfsub_c$cluster <- as.factor(dfsub_c$cluster)
+ggplot(data = dfsub_c, aes(x = AvgPrice, y = SellerAuctionSaleCount))+
+  geom_point(data = dfsub_c, aes(x = AvgPrice, y = SellerAuctionSaleCount, col = cluster))
+
+ggplot(data = dfsub_c, aes(x = AvgPrice, y = SellerAuctionSaleCount))+
+  geom_point(data = dfsub_c, aes(x = AvgPrice, y = SellerAuctionSaleCount, col = as.factor()))+
+  scale_color_discrete(dfsub_c$cluster)
+
 library(miceadds)
 library(multiwayvcov)
 
